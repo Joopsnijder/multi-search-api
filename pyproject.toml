@@ -42,10 +42,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/joop/multi-search-api"
-Documentation = "https://github.com/joop/multi-search-api#readme"
-Repository = "https://github.com/joop/multi-search-api"
-Issues = "https://github.com/joop/multi-search-api/issues"
+Homepage = "https://github.com/Joopsnijder/multi-search-api"
+Documentation = "https://github.com/Joopsnijder/multi-search-api#readme"
+Repository = "https://github.com/Joopsnijder/multi-search-api"
+Issues = "https://github.com/Joopsnijder/multi-search-api/issues"
 
 [build-system]
 requires = ["setuptools>=61.0"]
