@@ -120,7 +120,7 @@ def multiple_searches_comparison():
         print(f"\n\nQuery: '{query}'")
         print(f"Provider: {result['provider']}")
         print(f"Cache hit: {result['cache_hit']}")
-        print(f"\nTop results:")
+        print("\nTop results:")
 
         for i, item in enumerate(result["results"][:3], 1):
             print(f"  {i}. {item['title']}")

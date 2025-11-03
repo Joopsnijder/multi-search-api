@@ -49,9 +49,7 @@ class TestSerperProvider:
         """Test rate limit error handling."""
         provider = SerperProvider(api_key="test_key")
 
-        responses.add(
-            responses.POST, "https://google.serper.dev/search", json={}, status=429
-        )
+        responses.add(responses.POST, "https://google.serper.dev/search", json={}, status=429)
 
         with pytest.raises(RateLimitError):
             provider.search("test query")
@@ -61,9 +59,7 @@ class TestSerperProvider:
         """Test payment required error handling."""
         provider = SerperProvider(api_key="test_key")
 
-        responses.add(
-            responses.POST, "https://google.serper.dev/search", json={}, status=402
-        )
+        responses.add(responses.POST, "https://google.serper.dev/search", json={}, status=402)
 
         with pytest.raises(RateLimitError):
             provider.search("test query")

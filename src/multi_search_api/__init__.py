@@ -12,8 +12,8 @@ from multi_search_api.providers import (
     BraveProvider,
     GoogleScraperProvider,
     OllamaProvider,
-    SearXNGProvider,
     SearchProvider,
+    SearXNGProvider,
     SerperProvider,
 )
 
