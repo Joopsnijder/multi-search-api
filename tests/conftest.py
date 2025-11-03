@@ -1,6 +1,5 @@
 """Pytest configuration and fixtures for multi-search-api tests."""
 
-import json
 import tempfile
 from pathlib import Path
 

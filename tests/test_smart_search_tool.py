@@ -1,11 +1,8 @@
 """Tests for SmartSearchTool core functionality."""
 
-import pytest
-import responses
 from freezegun import freeze_time
 
 from multi_search_api import SmartSearchTool
-from multi_search_api.exceptions import RateLimitError
 
 
 class TestSmartSearchTool:
@@ -43,9 +40,7 @@ class TestSmartSearchTool:
     ):
         """Test successful search using cached results."""
         # Pre-populate cache with results
-        smart_search_tool_with_cache.cache.cache_results(
-            "test query", "any", sample_search_results
-        )
+        smart_search_tool_with_cache.cache.cache_results("test query", "any", sample_search_results)
 
         result = smart_search_tool_with_cache.search("test query")
 
@@ -57,9 +52,7 @@ class TestSmartSearchTool:
     def test_cache_hit(self, smart_search_tool_with_cache, sample_search_results):
         """Test cache hit on second search."""
         # Manually cache results
-        smart_search_tool_with_cache.cache.cache_results(
-            "test query", "any", sample_search_results
-        )
+        smart_search_tool_with_cache.cache.cache_results("test query", "any", sample_search_results)
 
         # Search should hit cache
         result = smart_search_tool_with_cache.search("test query")
@@ -98,9 +91,7 @@ class TestSmartSearchTool:
         """Test cache clearing."""
         # Add cached results at a specific time
         with freeze_time("2025-01-01 12:00:00"):
-            smart_search_tool_with_cache.cache.cache_results(
-                "query1", "any", sample_search_results
-            )
+            smart_search_tool_with_cache.cache.cache_results("query1", "any", sample_search_results)
 
         # Cache should have entries
         assert len(smart_search_tool_with_cache.cache.cache_data) > 0
@@ -145,9 +136,7 @@ class TestSmartSearchTool:
     ):
         """Test CrewAI-compatible run method."""
         # Pre-populate cache
-        smart_search_tool_with_cache.cache.cache_results(
-            "test query", "any", sample_search_results
-        )
+        smart_search_tool_with_cache.cache.cache_results("test query", "any", sample_search_results)
 
         result = smart_search_tool_with_cache.run("test query")
 
