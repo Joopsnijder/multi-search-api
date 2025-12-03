@@ -11,6 +11,7 @@ from multi_search_api.cache import SearchResultCache
 from multi_search_api.exceptions import RateLimitError
 from multi_search_api.providers import (
     BraveProvider,
+    DuckDuckGoProvider,
     GoogleScraperProvider,
     SearXNGProvider,
     SerperProvider,
@@ -32,7 +33,7 @@ class SmartSearchTool:
     Intelligent search tool with automatic fallback and rate limit handling.
 
     Features:
-    - Multi-provider fallback (Serper → SearXNG → Brave → Google Scraper)
+    - Multi-provider fallback (Serper → SearXNG → Brave → DuckDuckGo → Google Scraper)
     - Automatic rate limit detection (HTTP 402/429)
     - Session-based provider skipping when rate limited
     - 1-day result caching for performance
@@ -41,7 +42,8 @@ class SmartSearchTool:
     1. Serper - Best quality with rich snippets (primary choice)
     2. SearXNG - Free, unlimited, variable quality
     3. Brave - Good quality with snippets (requires API key)
-    4. Google Scraper - Last resort fallback
+    4. DuckDuckGo - Free, no API key, rate limited (~20 req/min)
+    5. Google Scraper - Last resort fallback
 
     Note: Ollama provider disabled by default due to empty snippets issue
     """
@@ -85,7 +87,12 @@ class SmartSearchTool:
         if brave_api_key or os.getenv("BRAVE_API_KEY"):
             self.providers.append(BraveProvider(brave_api_key or os.getenv("BRAVE_API_KEY")))
 
-        # 4. Google Scraper (last resort)
+        # 4. DuckDuckGo (free, no API key, rate limited)
+        duckduckgo_provider = DuckDuckGoProvider()
+        if duckduckgo_provider.is_available():
+            self.providers.append(duckduckgo_provider)
+
+        # 5. Google Scraper (last resort)
         self.providers.append(GoogleScraperProvider())
 
         # Note: Ollama disabled by default due to empty snippets issue
