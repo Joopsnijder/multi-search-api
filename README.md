@@ -11,7 +11,7 @@
 - 🔄 **Automatic Fallback**: Seamlessly switches between multiple search providers
 - 💾 **Smart Caching**: 1-day result caching to reduce API calls
 - 🚦 **Rate Limit Handling**: Automatic detection and provider rotation on HTTP 402/429
-- 🔌 **Multiple Providers**: Support for Serper, SearXNG, Brave, and Google scraping
+- 🔌 **Multiple Providers**: Support for Serper, SearXNG, Brave, DuckDuckGo, and Google scraping
 - 🎯 **Zero Configuration**: Works out of the box with sensible defaults
 - 📊 **Provider Management**: Track status, cache stats, and rate limits
 
@@ -22,12 +22,16 @@
 | **Serper** | API | ⭐⭐⭐⭐⭐ Excellent | 2,500 free/month | Yes |
 | **SearXNG** | Meta-search | ⭐⭐⭐⭐ Good | Unlimited | No |
 | **Brave** | API | ⭐⭐⭐⭐⭐ Excellent | 1 req/sec free | Yes |
+| **DuckDuckGo** | Scraping | ⭐⭐⭐⭐ Good | ~20 req/min | No |
 | **Google Scraper** | Scraping | ⭐⭐⭐ Fair | Use sparingly | No |
 
 ## Installation
 
 ```bash
 pip install multi-search-api
+
+# With DuckDuckGo support (optional)
+pip install multi-search-api[duckduckgo]
 ```
 
 ## Quick Start
@@ -162,7 +166,8 @@ task = Task(
 1. **Serper** - Best quality results, 2,500 free searches/month
 2. **SearXNG** - Free unlimited searches, variable quality
 3. **Brave** - Excellent quality, 1 req/sec limit on free tier
-4. **Google Scraper** - Last resort fallback
+4. **DuckDuckGo** - Free, no API key, ~20 req/min with exponential backoff
+5. **Google Scraper** - Last resort fallback
 
 ### Automatic Fallback
 
@@ -245,6 +250,20 @@ SmartSearchTool(
 
 SearXNG is automatically configured with public instances. No setup required!
 
+### DuckDuckGo (No Key Needed)
+
+DuckDuckGo requires the optional `duckduckgo-search` package:
+
+```bash
+pip install multi-search-api[duckduckgo]
+```
+
+Features:
+
+- No API key required
+- Automatic rate limiting (~20 requests/minute)
+- Exponential backoff on rate limit errors
+
 ## Configuration
 
 ### Custom Cache Directory
@@ -307,6 +326,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Joop Snijder**
 
 ## Changelog
+
+### 0.1.2 (2025-12-03)
+
+- Added DuckDuckGo search provider (free, no API key)
+- Exponential backoff rate limiting for DuckDuckGo
+- Optional dependency: `pip install multi-search-api[duckduckgo]`
+
+### 0.1.1 (2025-11-03)
+
+- Fixed thread-safety issues in SearchResultCache
+- Added threading.Lock for concurrent cache operations
+- Comprehensive thread-safety tests
 
 ### 0.1.0 (2025-10-26)
 
