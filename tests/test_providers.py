@@ -157,6 +157,87 @@ class TestSearXNGProvider:
         # Should have rotated to next instance
         assert provider.instance_url != initial_instance or len(provider.instances) == 1
 
+    def test_rate_limit_tracking(self):
+        """Test that rate-limited instances are tracked."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+        provider.instance_url = "https://instance1.com"
+
+        # Initially no instances are rate-limited
+        assert provider._is_instance_rate_limited("https://instance1.com") is False
+        assert len(provider._get_available_instances()) == 2
+
+        # Mark instance as rate-limited
+        provider._mark_instance_rate_limited("https://instance1.com")
+
+        # Now instance1 should be rate-limited
+        assert provider._is_instance_rate_limited("https://instance1.com") is True
+        assert len(provider._get_available_instances()) == 1
+        assert "https://instance2.com" in provider._get_available_instances()
+
+    def test_is_available_with_rate_limited_instances(self):
+        """Test is_available returns False when all instances are rate-limited."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+
+        # Initially available
+        assert provider.is_available() is True
+
+        # Mark all instances as rate-limited
+        provider._mark_instance_rate_limited("https://instance1.com")
+        provider._mark_instance_rate_limited("https://instance2.com")
+
+        # Now should not be available
+        assert provider.is_available() is False
+
+    @responses.activate
+    def test_rate_limit_error_on_429(self):
+        """Test that 429 response marks instance as rate-limited."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com"]
+        provider.instance_url = "https://instance1.com"
+
+        responses.add(
+            responses.GET,
+            "https://instance1.com/search",
+            json={},
+            status=429,
+        )
+
+        with pytest.raises(RateLimitError):
+            provider.search("test query")
+
+        # Instance should now be rate-limited
+        assert provider._is_instance_rate_limited("https://instance1.com") is True
+
+    @responses.activate
+    def test_fallback_on_429(self, mock_searxng_response):
+        """Test fallback to next instance on 429."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+        provider.instance_url = "https://instance1.com"
+
+        # First instance returns 429
+        responses.add(
+            responses.GET,
+            "https://instance1.com/search",
+            json={},
+            status=429,
+        )
+        # Second instance works
+        responses.add(
+            responses.GET,
+            "https://instance2.com/search",
+            json=mock_searxng_response,
+            status=200,
+        )
+
+        results = provider.search("test query")
+
+        assert len(results) == 2
+        assert provider._is_instance_rate_limited("https://instance1.com") is True
+        assert provider._is_instance_rate_limited("https://instance2.com") is False
+
 
 class TestDuckDuckGoProvider:
     """Tests for DuckDuckGo provider."""

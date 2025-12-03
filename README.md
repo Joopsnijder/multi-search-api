@@ -320,6 +320,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.5 (2025-12-03)
+
+- Improved SearXNG rate limit handling with instance cooldown (5 min)
+- Rate-limited SearXNG instances are now tracked and skipped
+- Raises `RateLimitError` when all SearXNG instances are rate-limited
+
 ### 0.1.4 (2025-12-03)
 
 - Updated DuckDuckGo dependency from `duckduckgo-search` to `ddgs` (package renamed)

@@ -2,12 +2,14 @@
 
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import requests
 
+from multi_search_api.exceptions import RateLimitError
 from multi_search_api.providers.base import SearchProvider
 
 logger = logging.getLogger(__name__)
@@ -142,7 +144,16 @@ class SearXNGInstanceManager:
 
 
 class SearXNGProvider(SearchProvider):
-    """SearXNG search provider (free, open source)."""
+    """SearXNG search provider (free, open source).
+
+    Rate limiting strategy:
+    - Tracks rate-limited instances with cooldown period
+    - Instances that return 429 are blocked for 5 minutes
+    - Raises RateLimitError when all instances are rate-limited
+    """
+
+    # Cooldown period for rate-limited instances (5 minutes)
+    RATE_LIMIT_COOLDOWN = 300
 
     def __init__(self, instance_url: str | None = None):
         self.instance_manager = SearXNGInstanceManager()
@@ -151,25 +162,80 @@ class SearXNGProvider(SearchProvider):
             self.instances[0] if self.instances else "https://searx.be"
         )
         self.current_instance_idx = 0
+        # Track rate-limited instances: {url: timestamp_when_blocked}
+        self.rate_limited_instances: dict[str, float] = {}
+
+    def _is_instance_rate_limited(self, instance_url: str) -> bool:
+        """Check if an instance is currently rate-limited."""
+        if instance_url not in self.rate_limited_instances:
+            return False
+
+        blocked_time = self.rate_limited_instances[instance_url]
+        if time.time() - blocked_time > self.RATE_LIMIT_COOLDOWN:
+            # Cooldown expired, remove from rate-limited list
+            del self.rate_limited_instances[instance_url]
+            logger.info(f"SearXNG instance {instance_url} cooldown expired, available again")
+            return False
+
+        return True
+
+    def _mark_instance_rate_limited(self, instance_url: str):
+        """Mark an instance as rate-limited."""
+        self.rate_limited_instances[instance_url] = time.time()
+        logger.warning(
+            f"SearXNG instance {instance_url} marked as rate-limited for "
+            f"{self.RATE_LIMIT_COOLDOWN}s"
+        )
+
+    def _get_available_instances(self) -> list[str]:
+        """Get list of instances that are not rate-limited."""
+        return [url for url in self.instances if not self._is_instance_rate_limited(url)]
 
     def rotate_instance(self):
-        """Rotate to next instance."""
-        if self.instances:
+        """Rotate to next available (non-rate-limited) instance."""
+        available = self._get_available_instances()
+        if available:
+            # Find next available instance
             self.current_instance_idx = (self.current_instance_idx + 1) % len(self.instances)
+            # Skip rate-limited instances
+            attempts = 0
+            while self._is_instance_rate_limited(
+                self.instances[self.current_instance_idx]
+            ) and attempts < len(self.instances):
+                self.current_instance_idx = (self.current_instance_idx + 1) % len(self.instances)
+                attempts += 1
+
             self.instance_url = self.instances[self.current_instance_idx]
             logger.info(f"Rotated to SearXNG instance: {self.instance_url}")
         else:
-            logger.warning("No instances available to rotate to")
+            logger.warning("No available SearXNG instances (all rate-limited)")
 
     def is_available(self) -> bool:
-        """Check if SearXNG is available."""
-        return True  # Always available as a free option
+        """Check if SearXNG is available (has non-rate-limited instances)."""
+        return len(self._get_available_instances()) > 0
 
     def search(self, query: str, **kwargs) -> list[dict[str, Any]]:
-        """Search via SearXNG."""
-        max_retries = 3
+        """Search via SearXNG.
+
+        Raises:
+            RateLimitError: When all instances are rate-limited
+        """
+        # Check if any instances are available
+        available_instances = self._get_available_instances()
+        if not available_instances:
+            raise RateLimitError("All SearXNG instances are rate-limited")
+
+        # Try up to the number of available instances
+        max_retries = min(3, len(available_instances))
 
         for _attempt in range(max_retries):
+            # Skip if current instance is rate-limited
+            if self._is_instance_rate_limited(self.instance_url):
+                self.rotate_instance()
+                if not self._get_available_instances():
+                    raise RateLimitError("All SearXNG instances are rate-limited")
+                continue
+
             try:
                 params = {
                     "q": query,
@@ -201,12 +267,22 @@ class SearXNGProvider(SearchProvider):
 
                     logger.info(f"SearXNG search successful: {len(results)} results")
                     return results
+                elif response.status_code == 429:
+                    # Rate limited - mark instance and rotate
+                    self._mark_instance_rate_limited(self.instance_url)
+                    self.rotate_instance()
+                    # Check if all instances are now rate-limited
+                    if not self._get_available_instances():
+                        raise RateLimitError("All SearXNG instances are rate-limited")
                 else:
                     logger.warning(
                         f"SearXNG instance {self.instance_url} returned {response.status_code}"
                     )
                     self.rotate_instance()
 
+            except RateLimitError:
+                # Re-raise RateLimitError
+                raise
             except Exception as e:
                 logger.warning(f"SearXNG instance {self.instance_url} failed: {e}")
                 self.rotate_instance()
