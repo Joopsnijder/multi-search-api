@@ -29,9 +29,6 @@
 
 ```bash
 pip install multi-search-api
-
-# With DuckDuckGo support (optional)
-pip install multi-search-api[duckduckgo]
 ```
 
 ## Quick Start
@@ -252,11 +249,7 @@ SearXNG is automatically configured with public instances. No setup required!
 
 ### DuckDuckGo (No Key Needed)
 
-DuckDuckGo requires the optional `duckduckgo-search` package:
-
-```bash
-pip install multi-search-api[duckduckgo]
-```
+DuckDuckGo is included by default. No setup required!
 
 Features:
 
@@ -327,11 +320,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.3 (2025-12-03)
+
+- DuckDuckGo is now a standard dependency (no longer optional)
+
 ### 0.1.2 (2025-12-03)
 
 - Added DuckDuckGo search provider (free, no API key)
 - Exponential backoff rate limiting for DuckDuckGo
-- Optional dependency: `pip install multi-search-api[duckduckgo]`
 
 ### 0.1.1 (2025-11-03)
 

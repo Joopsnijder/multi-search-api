@@ -161,17 +161,10 @@ class TestSearXNGProvider:
 class TestDuckDuckGoProvider:
     """Tests for DuckDuckGo provider."""
 
-    def test_is_available_with_package(self):
-        """Test provider is available when duckduckgo-search is installed."""
-        with patch("multi_search_api.providers.duckduckgo.DUCKDUCKGO_AVAILABLE", True):
-            provider = DuckDuckGoProvider()
-            assert provider.is_available() is True
-
-    def test_is_available_without_package(self):
-        """Test provider is not available when duckduckgo-search is not installed."""
-        with patch("multi_search_api.providers.duckduckgo.DUCKDUCKGO_AVAILABLE", False):
-            provider = DuckDuckGoProvider()
-            assert provider.is_available() is False
+    def test_is_available(self):
+        """Test provider is always available (duckduckgo-search is a required dependency)."""
+        provider = DuckDuckGoProvider()
+        assert provider.is_available() is True
 
     def test_default_rate_limit_settings(self):
         """Test default rate limit settings."""
@@ -209,7 +202,6 @@ class TestDuckDuckGoProvider:
         provider.consecutive_failures = 4
         assert provider._get_backoff_time() == 30.0
 
-    @patch("multi_search_api.providers.duckduckgo.DUCKDUCKGO_AVAILABLE", True)
     @patch("multi_search_api.providers.duckduckgo.DDGS")
     def test_successful_search(self, mock_ddgs_class):
         """Test successful search with DuckDuckGo."""
@@ -233,13 +225,10 @@ class TestDuckDuckGoProvider:
         assert results[0]["source"] == "duckduckgo"
         assert provider.consecutive_failures == 0
 
-    @patch("multi_search_api.providers.duckduckgo.DUCKDUCKGO_AVAILABLE", True)
     @patch("multi_search_api.providers.duckduckgo.DDGS")
-    @patch("multi_search_api.providers.duckduckgo.RatelimitException", Exception)
     def test_rate_limit_error(self, mock_ddgs_class):
         """Test rate limit error handling."""
-        # Import the actual exception for testing
-        from multi_search_api.providers.duckduckgo import RatelimitException
+        from duckduckgo_search.exceptions import RatelimitException
 
         mock_ddgs_instance = MagicMock()
         mock_ddgs_class.return_value.__enter__.return_value = mock_ddgs_instance
@@ -252,10 +241,3 @@ class TestDuckDuckGoProvider:
             provider.search("test query")
 
         assert provider.consecutive_failures == 1
-
-    @patch("multi_search_api.providers.duckduckgo.DUCKDUCKGO_AVAILABLE", False)
-    def test_search_without_package(self):
-        """Test search returns empty when package not installed."""
-        provider = DuckDuckGoProvider()
-        results = provider.search("test query")
-        assert results == []

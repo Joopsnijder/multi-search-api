@@ -4,21 +4,13 @@ import logging
 import time
 from typing import Any
 
+from duckduckgo_search import DDGS
+from duckduckgo_search.exceptions import RatelimitException
+
 from multi_search_api.exceptions import RateLimitError
 from multi_search_api.providers.base import SearchProvider
 
 logger = logging.getLogger(__name__)
-
-# Check if duckduckgo-search is installed
-try:
-    from duckduckgo_search import DDGS
-    from duckduckgo_search.exceptions import RatelimitException
-
-    DUCKDUCKGO_AVAILABLE = True
-except ImportError:
-    DDGS = None
-    RatelimitException = Exception
-    DUCKDUCKGO_AVAILABLE = False
 
 
 class DuckDuckGoProvider(SearchProvider):
@@ -44,7 +36,7 @@ class DuckDuckGoProvider(SearchProvider):
 
     def is_available(self) -> bool:
         """Check if DuckDuckGo is available."""
-        return DUCKDUCKGO_AVAILABLE
+        return True
 
     def _get_backoff_time(self) -> float:
         """Calculate exponential backoff time based on consecutive failures."""
@@ -78,10 +70,6 @@ class DuckDuckGoProvider(SearchProvider):
         Returns:
             List of search results
         """
-        if not DUCKDUCKGO_AVAILABLE:
-            logger.error("duckduckgo-search package not installed")
-            return []
-
         try:
             # Apply rate limiting
             self._wait_for_rate_limit()
