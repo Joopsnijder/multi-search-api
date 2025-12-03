@@ -320,6 +320,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.6 (2025-12-03)
+
+- Track failed/broken SearXNG instances (JSON errors, 500 errors) with 2 min cooldown
+- Rate-limited instances (429) still use 5 min cooldown
+- Increased max retries from 3 to 5 instances per search
+- More efficient instance rotation skipping unavailable instances
+
 ### 0.1.5 (2025-12-03)
 
 - Improved SearXNG rate limit handling with instance cooldown (5 min)

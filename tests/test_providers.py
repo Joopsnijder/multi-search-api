@@ -238,6 +238,107 @@ class TestSearXNGProvider:
         assert provider._is_instance_rate_limited("https://instance1.com") is True
         assert provider._is_instance_rate_limited("https://instance2.com") is False
 
+    def test_failed_instance_tracking(self):
+        """Test that failed instances are tracked with shorter cooldown."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+        provider.instance_url = "https://instance1.com"
+
+        # Initially no instances are failed
+        assert provider._is_instance_failed("https://instance1.com") is False
+        assert len(provider._get_available_instances()) == 2
+
+        # Mark instance as failed
+        provider._mark_instance_failed("https://instance1.com")
+
+        # Now instance1 should be failed
+        assert provider._is_instance_failed("https://instance1.com") is True
+        assert len(provider._get_available_instances()) == 1
+        assert "https://instance2.com" in provider._get_available_instances()
+
+    def test_is_instance_available_checks_both(self):
+        """Test that _is_instance_available checks both rate-limited and failed."""
+        provider = SearXNGProvider()
+        provider.instances = [
+            "https://instance1.com",
+            "https://instance2.com",
+            "https://instance3.com",
+        ]
+
+        # Initially all available
+        assert provider._is_instance_available("https://instance1.com") is True
+        assert provider._is_instance_available("https://instance2.com") is True
+        assert provider._is_instance_available("https://instance3.com") is True
+
+        # Mark one as rate-limited
+        provider._mark_instance_rate_limited("https://instance1.com")
+        assert provider._is_instance_available("https://instance1.com") is False
+
+        # Mark one as failed
+        provider._mark_instance_failed("https://instance2.com")
+        assert provider._is_instance_available("https://instance2.com") is False
+
+        # Third one still available
+        assert provider._is_instance_available("https://instance3.com") is True
+        assert len(provider._get_available_instances()) == 1
+
+    @responses.activate
+    def test_failed_instance_on_500(self, mock_searxng_response):
+        """Test that 500 response marks instance as failed (not rate-limited)."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+        provider.instance_url = "https://instance1.com"
+
+        # First instance returns 500
+        responses.add(
+            responses.GET,
+            "https://instance1.com/search",
+            json={},
+            status=500,
+        )
+        # Second instance works
+        responses.add(
+            responses.GET,
+            "https://instance2.com/search",
+            json=mock_searxng_response,
+            status=200,
+        )
+
+        results = provider.search("test query")
+
+        assert len(results) == 2
+        # Instance1 should be marked as failed, not rate-limited
+        assert provider._is_instance_failed("https://instance1.com") is True
+        assert provider._is_instance_rate_limited("https://instance1.com") is False
+
+    @responses.activate
+    def test_failed_instance_on_json_error(self, mock_searxng_response):
+        """Test that JSON parse errors mark instance as failed."""
+        provider = SearXNGProvider()
+        provider.instances = ["https://instance1.com", "https://instance2.com"]
+        provider.instance_url = "https://instance1.com"
+
+        # First instance returns invalid JSON
+        responses.add(
+            responses.GET,
+            "https://instance1.com/search",
+            body="not valid json",
+            status=200,
+        )
+        # Second instance works
+        responses.add(
+            responses.GET,
+            "https://instance2.com/search",
+            json=mock_searxng_response,
+            status=200,
+        )
+
+        results = provider.search("test query")
+
+        assert len(results) == 2
+        # Instance1 should be marked as failed
+        assert provider._is_instance_failed("https://instance1.com") is True
+
 
 class TestDuckDuckGoProvider:
     """Tests for DuckDuckGo provider."""
