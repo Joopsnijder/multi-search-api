@@ -228,7 +228,7 @@ class TestDuckDuckGoProvider:
     @patch("multi_search_api.providers.duckduckgo.DDGS")
     def test_rate_limit_error(self, mock_ddgs_class):
         """Test rate limit error handling."""
-        from duckduckgo_search.exceptions import RatelimitException
+        from ddgs.exceptions import RatelimitException
 
         mock_ddgs_instance = MagicMock()
         mock_ddgs_class.return_value.__enter__.return_value = mock_ddgs_instance

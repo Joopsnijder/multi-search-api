@@ -1,6 +1,6 @@
 [project]
 name = "multi-search-api"
-version = "0.1.3"
+version = "0.1.4"
 description = "Intelligent multi-provider search API with automatic fallback and caching"
 authors = [
     {name = "Joop Snijder", email = "joop@example.com"}
@@ -27,7 +27,7 @@ dependencies = [
     "requests>=2.31.0",
     "beautifulsoup4>=4.12.0",
     "python-dotenv>=1.0.0",
-    "duckduckgo-search>=6.0.0",
+    "ddgs>=6.0.0",
 ]
 
 [project.optional-dependencies]

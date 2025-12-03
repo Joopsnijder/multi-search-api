@@ -4,8 +4,8 @@ import logging
 import time
 from typing import Any
 
-from duckduckgo_search import DDGS
-from duckduckgo_search.exceptions import RatelimitException
+from ddgs import DDGS
+from ddgs.exceptions import RatelimitException
 
 from multi_search_api.exceptions import RateLimitError
 from multi_search_api.providers.base import SearchProvider

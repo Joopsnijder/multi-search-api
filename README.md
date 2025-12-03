@@ -320,6 +320,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.4 (2025-12-03)
+
+- Updated DuckDuckGo dependency from `duckduckgo-search` to `ddgs` (package renamed)
+
 ### 0.1.3 (2025-12-03)
 
 - DuckDuckGo is now a standard dependency (no longer optional)
