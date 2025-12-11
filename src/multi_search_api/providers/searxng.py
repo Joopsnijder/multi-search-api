@@ -323,4 +323,12 @@ class SearXNGProvider(SearchProvider):
                 self._mark_instance_failed(current_instance)
                 self.rotate_instance()
 
+        # If we exhausted all retries without success, check if we should raise
+        # This triggers fallback to next provider
+        available = self._get_available_instances()
+        if not available:
+            raise RateLimitError("All SearXNG instances are unavailable")
+
+        # Still have available instances but couldn't get results
+        logger.warning("SearXNG: max retries exhausted, falling back to next provider")
         return []

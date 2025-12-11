@@ -212,7 +212,7 @@ class SmartSearchTool:
 
                         if results:
                             used_provider = provider_name
-                            logger.info(f"Success with {provider_name}: {len(results)} results")
+                            logger.info(f"✅ Success with {provider_name}: {len(results)} results")
 
                             # Cache the results if caching is enabled (only cache non-empty)
                             # Cache under generic "any" provider so any provider can retrieve it
@@ -221,7 +221,9 @@ class SmartSearchTool:
 
                             break
                         else:
-                            logger.warning(f"{provider_name} returned no results")
+                            logger.warning(
+                                f"⏭️  {provider_name} returned no results, trying next provider"
+                            )
                     except RateLimitError as e:
                         # Mark provider as rate-limited for rest of session
                         self.rate_limited_providers.add(provider_name)
@@ -230,8 +232,12 @@ class SmartSearchTool:
                         )
                         # Continue to next provider
                         continue
+                    except Exception as e:
+                        # Other errors - log and try next provider
+                        logger.warning(f"⏭️  {provider_name} failed: {e}, trying next provider")
+                        continue
                 else:
-                    logger.info(f"{provider_name} not available, trying next")
+                    logger.info(f"⏭️  {provider_name} not available, trying next provider")
 
         # Format response
         return {

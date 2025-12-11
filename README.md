@@ -320,6 +320,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.7 (2025-12-11)
+
+- Improved provider fallback: automatically tries next provider on errors or empty results
+- Added exception handling for all provider errors (not just RateLimitError)
+- SearXNG now raises RateLimitError when all instances exhausted (triggers proper fallback)
+- Better logging with emojis to show fallback flow (✅ success, ⏭️ skip, ⚠️ rate limit)
+- Added 4 new tests for provider fallback scenarios
+
 ### 0.1.6 (2025-12-03)
 
 - Track failed/broken SearXNG instances (JSON errors, 500 errors) with 2 min cooldown

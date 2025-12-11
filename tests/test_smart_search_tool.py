@@ -1,8 +1,11 @@
 """Tests for SmartSearchTool core functionality."""
 
+from unittest.mock import MagicMock
+
 from freezegun import freeze_time
 
 from multi_search_api import SmartSearchTool
+from multi_search_api.exceptions import RateLimitError
 
 
 class TestSmartSearchTool:
@@ -155,3 +158,104 @@ class TestSmartSearchTool:
         result = smart_search_tool_with_cache.search("test", num_results=10)
         # Will try to search since cache key is different
         assert result["cache_hit"] is False or result["provider"] != "cached"
+
+    def test_provider_fallback_on_rate_limit(self, sample_search_results):
+        """Test that provider fallback works when first provider raises RateLimitError."""
+        tool = SmartSearchTool(enable_cache=False)
+
+        # Create mock providers
+        mock_provider1 = MagicMock()
+        mock_provider1.__class__.__name__ = "Provider1"
+        mock_provider1.is_available.return_value = True
+        mock_provider1.search.side_effect = RateLimitError("Rate limited")
+
+        mock_provider2 = MagicMock()
+        mock_provider2.__class__.__name__ = "Provider2"
+        mock_provider2.is_available.return_value = True
+        mock_provider2.search.return_value = sample_search_results
+
+        # Replace providers
+        tool.providers = [mock_provider1, mock_provider2]
+
+        result = tool.search("test query")
+
+        # Should have used Provider2
+        assert result["provider"] == "Provider2"
+        assert len(result["results"]) == 3
+        # Provider1 should be marked as rate-limited
+        assert "Provider1" in tool.rate_limited_providers
+
+    def test_provider_fallback_on_empty_results(self, sample_search_results):
+        """Test that provider fallback works when first provider returns empty results."""
+        tool = SmartSearchTool(enable_cache=False)
+
+        # Create mock providers
+        mock_provider1 = MagicMock()
+        mock_provider1.__class__.__name__ = "Provider1"
+        mock_provider1.is_available.return_value = True
+        mock_provider1.search.return_value = []  # Empty results
+
+        mock_provider2 = MagicMock()
+        mock_provider2.__class__.__name__ = "Provider2"
+        mock_provider2.is_available.return_value = True
+        mock_provider2.search.return_value = sample_search_results
+
+        # Replace providers
+        tool.providers = [mock_provider1, mock_provider2]
+
+        result = tool.search("test query")
+
+        # Should have used Provider2
+        assert result["provider"] == "Provider2"
+        assert len(result["results"]) == 3
+
+    def test_provider_fallback_on_exception(self, sample_search_results):
+        """Test that provider fallback works when first provider raises an exception."""
+        tool = SmartSearchTool(enable_cache=False)
+
+        # Create mock providers
+        mock_provider1 = MagicMock()
+        mock_provider1.__class__.__name__ = "Provider1"
+        mock_provider1.is_available.return_value = True
+        mock_provider1.search.side_effect = Exception("Connection error")
+
+        mock_provider2 = MagicMock()
+        mock_provider2.__class__.__name__ = "Provider2"
+        mock_provider2.is_available.return_value = True
+        mock_provider2.search.return_value = sample_search_results
+
+        # Replace providers
+        tool.providers = [mock_provider1, mock_provider2]
+
+        result = tool.search("test query")
+
+        # Should have used Provider2
+        assert result["provider"] == "Provider2"
+        assert len(result["results"]) == 3
+
+    def test_skips_rate_limited_provider(self, sample_search_results):
+        """Test that rate-limited providers are skipped in subsequent searches."""
+        tool = SmartSearchTool(enable_cache=False)
+
+        # Create mock providers
+        mock_provider1 = MagicMock()
+        mock_provider1.__class__.__name__ = "Provider1"
+        mock_provider1.is_available.return_value = True
+        mock_provider1.search.return_value = sample_search_results
+
+        mock_provider2 = MagicMock()
+        mock_provider2.__class__.__name__ = "Provider2"
+        mock_provider2.is_available.return_value = True
+        mock_provider2.search.return_value = sample_search_results
+
+        # Replace providers and mark Provider1 as rate-limited
+        tool.providers = [mock_provider1, mock_provider2]
+        tool.rate_limited_providers.add("Provider1")
+
+        result = tool.search("test query")
+
+        # Provider1's search should NOT have been called
+        mock_provider1.search.assert_not_called()
+        # Provider2's search SHOULD have been called
+        mock_provider2.search.assert_called_once()
+        assert result["provider"] == "Provider2"
