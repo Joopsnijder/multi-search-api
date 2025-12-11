@@ -73,6 +73,9 @@ class SmartSearchTool:
         # Track rate-limited providers for current session
         self.rate_limited_providers = set()
 
+        # Track warnings that have already been shown (to avoid spam)
+        self._seen_warnings: set[str] = set()
+
         # Initialize providers in priority order
         self.providers = []
 
@@ -100,6 +103,14 @@ class SmartSearchTool:
         #     self.providers.append(OllamaProvider(ollama_api_key or os.getenv("OLLAMA_API_KEY")))
 
         logger.info(f"Smart Search Tool initialized with {len(self.providers)} providers")
+
+    def _log_warning_once(self, message: str):
+        """Log warning once, then debug for subsequent occurrences."""
+        if message in self._seen_warnings:
+            logger.debug(message)
+        else:
+            self._seen_warnings.add(message)
+            logger.warning(message)
 
     async def search_recent_content(
         self, query: str, max_results: int = 10, days_back: int = 14, language: str = "nl,en"
@@ -221,20 +232,22 @@ class SmartSearchTool:
 
                             break
                         else:
-                            logger.warning(
+                            self._log_warning_once(
                                 f"⏭️  {provider_name} returned no results, trying next provider"
                             )
                     except RateLimitError as e:
                         # Mark provider as rate-limited for rest of session
                         self.rate_limited_providers.add(provider_name)
-                        logger.warning(
+                        self._log_warning_once(
                             f"⚠️  {provider_name} rate limited, skipping for rest of session: {e}"
                         )
                         # Continue to next provider
                         continue
                     except Exception as e:
                         # Other errors - log and try next provider
-                        logger.warning(f"⏭️  {provider_name} failed: {e}, trying next provider")
+                        self._log_warning_once(
+                            f"⏭️  {provider_name} failed: {e}, trying next provider"
+                        )
                         continue
                 else:
                     logger.info(f"⏭️  {provider_name} not available, trying next provider")

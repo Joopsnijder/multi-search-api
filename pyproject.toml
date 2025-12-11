@@ -1,6 +1,6 @@
 [project]
 name = "multi-search-api"
-version = "0.1.7"
+version = "0.1.8"
 description = "Intelligent multi-provider search API with automatic fallback and caching"
 authors = [
     {name = "Joop Snijder", email = "joop@example.com"}

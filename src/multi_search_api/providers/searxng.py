@@ -168,6 +168,16 @@ class SearXNGProvider(SearchProvider):
         self.rate_limited_instances: dict[str, float] = {}
         # Track failed/broken instances: {url: timestamp_when_failed}
         self.failed_instances: dict[str, float] = {}
+        # Track warnings that have already been shown (to avoid spam)
+        self._seen_warnings: set[str] = set()
+
+    def _log_warning_once(self, message: str):
+        """Log warning once, then debug for subsequent occurrences."""
+        if message in self._seen_warnings:
+            logger.debug(message)
+        else:
+            self._seen_warnings.add(message)
+            logger.warning(message)
 
     def _is_instance_rate_limited(self, instance_url: str) -> bool:
         """Check if an instance is currently rate-limited."""
@@ -186,7 +196,7 @@ class SearXNGProvider(SearchProvider):
     def _mark_instance_rate_limited(self, instance_url: str):
         """Mark an instance as rate-limited."""
         self.rate_limited_instances[instance_url] = time.time()
-        logger.warning(
+        self._log_warning_once(
             f"SearXNG instance {instance_url} marked as rate-limited for "
             f"{self.RATE_LIMIT_COOLDOWN}s"
         )
@@ -208,7 +218,7 @@ class SearXNGProvider(SearchProvider):
     def _mark_instance_failed(self, instance_url: str):
         """Mark an instance as failed/broken."""
         self.failed_instances[instance_url] = time.time()
-        logger.warning(
+        self._log_warning_once(
             f"SearXNG instance {instance_url} marked as failed for {self.FAILED_INSTANCE_COOLDOWN}s"
         )
 
@@ -239,7 +249,7 @@ class SearXNGProvider(SearchProvider):
             self.instance_url = self.instances[self.current_instance_idx]
             logger.info(f"Rotated to SearXNG instance: {self.instance_url}")
         else:
-            logger.warning("No available SearXNG instances (all rate-limited or failed)")
+            self._log_warning_once("No available SearXNG instances (all rate-limited or failed)")
 
     def is_available(self) -> bool:
         """Check if SearXNG is available (has non-rate-limited instances)."""
@@ -330,5 +340,5 @@ class SearXNGProvider(SearchProvider):
             raise RateLimitError("All SearXNG instances are unavailable")
 
         # Still have available instances but couldn't get results
-        logger.warning("SearXNG: max retries exhausted, falling back to next provider")
+        self._log_warning_once("SearXNG: max retries exhausted, falling back to next provider")
         return []
