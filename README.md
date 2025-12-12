@@ -320,6 +320,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Changelog
 
+### 0.1.9 (2025-12-12)
+
+- Success messages now always printed: `🔍 query → X results (Provider)`
+- Makes search progress visible regardless of logging level
+
 ### 0.1.8 (2025-12-11)
 
 - Warnings are now shown only once per session (subsequent occurrences logged as debug)

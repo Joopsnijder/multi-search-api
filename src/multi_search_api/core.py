@@ -223,7 +223,8 @@ class SmartSearchTool:
 
                         if results:
                             used_provider = provider_name
-                            logger.info(f"✅ Success with {provider_name}: {len(results)} results")
+                            query_display = query[:50] + "..." if len(query) > 50 else query
+                            print(f"🔍 {query_display} → {len(results)} results ({provider_name})")
 
                             # Cache the results if caching is enabled (only cache non-empty)
                             # Cache under generic "any" provider so any provider can retrieve it
