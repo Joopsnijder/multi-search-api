@@ -22,10 +22,23 @@ load_dotenv()
 
 # Setup logging - only show warnings and errors by default
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
 
 # Suppress verbose logging from httpx
 logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+def configure_logging(level: int = logging.WARNING, quiet: bool = False) -> None:
+    """Configure logging for multi-search-api.
+
+    Args:
+        level: Logging level (e.g., logging.DEBUG, logging.INFO, logging.WARNING)
+        quiet: If True, suppress all output (sets level to CRITICAL+1)
+    """
+    if quiet:
+        level = logging.CRITICAL + 1
+    logger.setLevel(level)
+    # Also set level on parent logger for providers
+    logging.getLogger("multi_search_api").setLevel(level)
 
 
 class SmartSearchTool:
@@ -56,6 +69,8 @@ class SmartSearchTool:
         searxng_instance: str | None = None,
         enable_cache: bool = True,
         cache_file: str | None = None,
+        log_level: int | None = None,
+        quiet: bool = False,
     ):
         """Initialize SmartSearchTool.
 
@@ -66,7 +81,13 @@ class SmartSearchTool:
             searxng_instance: Custom SearXNG instance URL (optional)
             enable_cache: Enable result caching (default: True)
             cache_file: Custom cache file path (optional)
+            log_level: Logging level (e.g., logging.DEBUG, logging.INFO).
+                       Default: WARNING (only warnings and errors shown)
+            quiet: If True, suppress all logging output
         """
+        # Configure logging if specified
+        if quiet or log_level is not None:
+            configure_logging(level=log_level or logging.WARNING, quiet=quiet)
         # Initialize cache only
         self.cache = SearchResultCache(cache_file=cache_file) if enable_cache else None
 
@@ -224,7 +245,9 @@ class SmartSearchTool:
                         if results:
                             used_provider = provider_name
                             query_display = query[:50] + "..." if len(query) > 50 else query
-                            print(f"🔍 {query_display} → {len(results)} results ({provider_name})")
+                            logger.info(
+                                f"🔍 {query_display} → {len(results)} results ({provider_name})"
+                            )
 
                             # Cache the results if caching is enabled (only cache non-empty)
                             # Cache under generic "any" provider so any provider can retrieve it

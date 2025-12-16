@@ -6,7 +6,7 @@ A powerful search tool that automatically switches between multiple search provi
 """
 
 from multi_search_api.cache import SearchResultCache
-from multi_search_api.core import SmartSearchTool
+from multi_search_api.core import SmartSearchTool, configure_logging
 from multi_search_api.exceptions import RateLimitError
 from multi_search_api.providers import (
     BraveProvider,
@@ -30,4 +30,5 @@ __all__ = [
     "BraveProvider",
     "GoogleScraperProvider",
     "OllamaProvider",
+    "configure_logging",
 ]
