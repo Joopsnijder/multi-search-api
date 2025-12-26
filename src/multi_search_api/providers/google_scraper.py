@@ -4,11 +4,17 @@ import logging
 from typing import Any
 
 import httpx
-from bs4 import BeautifulSoup
+from justhtml import JustHTML
 
 from multi_search_api.providers.base import SearchProvider
 
 logger = logging.getLogger(__name__)
+
+
+def _query_one(element, selector):
+    """Get first matching element or None."""
+    results = element.query(selector)
+    return results[0] if results else None
 
 
 class GoogleScraperProvider(SearchProvider):
@@ -45,7 +51,7 @@ class GoogleScraperProvider(SearchProvider):
                 )
 
                 if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, "html.parser")
+                    doc = JustHTML(response.text)
                     results = []
 
                     # Parse search results - try multiple selectors as Google changes them
@@ -53,7 +59,7 @@ class GoogleScraperProvider(SearchProvider):
 
                     # Try different selectors Google uses
                     for selector in ["div.g", "div[data-ved]", ".g", ".tF2Cxc"]:
-                        search_divs = soup.select(selector)
+                        search_divs = doc.query(selector)
                         if search_divs:
                             break
 
@@ -62,25 +68,25 @@ class GoogleScraperProvider(SearchProvider):
                         return []
 
                     for g in search_divs[:5]:  # Only top 5
-                        title_elem = g.find("h3")
+                        title_elem = _query_one(g, "h3")
                         if not title_elem:
                             # Try alternative selectors for title
-                            title_elem = g.select_one("h3, .LC20lb, .DKV0Md")
+                            title_elem = _query_one(g, "h3, .LC20lb, .DKV0Md")
 
-                        link_elem = g.find("a")
+                        link_elem = _query_one(g, "a")
                         if not link_elem:
                             # Try alternative selectors for link
-                            link_elem = g.select_one("a[href]")
+                            link_elem = _query_one(g, "a[href]")
 
                         # Try multiple selectors for snippets
                         snippet_elem = None
                         for snippet_selector in [".aCOpRe", ".VwiC3b", ".s3v9rd", ".st"]:
-                            snippet_elem = g.select_one(snippet_selector)
+                            snippet_elem = _query_one(g, snippet_selector)
                             if snippet_elem:
                                 break
 
                         if title_elem and link_elem:
-                            href = link_elem.get("href", "")
+                            href = link_elem.attrs.get("href", "")
                             # Clean up href if it's a Google redirect
                             if href.startswith("/url?q="):
                                 try:
@@ -93,8 +99,8 @@ class GoogleScraperProvider(SearchProvider):
 
                             results.append(
                                 {
-                                    "title": title_elem.get_text().strip(),
-                                    "snippet": snippet_elem.get_text().strip()
+                                    "title": title_elem.to_text().strip(),
+                                    "snippet": snippet_elem.to_text().strip()
                                     if snippet_elem
                                     else "",
                                     "link": href,
