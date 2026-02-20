@@ -74,6 +74,9 @@ Create a `.env` file:
 ```env
 SERPER_API_KEY=your_serper_api_key_here
 BRAVE_API_KEY=your_brave_api_key_here
+
+# Optional: point to your own SearXNG instance to avoid rate limiting
+SEARXNG_INSTANCE=http://localhost:8888
 ```
 
 The tool will automatically load these keys.
@@ -160,8 +163,8 @@ task = Task(
 
 ### Provider Priority
 
-1. **Serper** - Best quality results, 2,500 free searches/month
-2. **SearXNG** - Free unlimited searches, variable quality
+1. **SearXNG** - Free, unlimited (preferred when self-hosted via `SEARXNG_INSTANCE`)
+2. **Serper** - Best quality results, 2,500 free searches/month
 3. **Brave** - Excellent quality, 1 req/sec limit on free tier
 4. **DuckDuckGo** - Free, no API key, ~20 req/min with exponential backoff
 5. **Google Scraper** - Last resort fallback
@@ -245,7 +248,32 @@ SmartSearchTool(
 
 ### SearXNG (No Key Needed)
 
-SearXNG is automatically configured with public instances. No setup required!
+SearXNG uses public instances by default — no setup required. However, public instances
+increasingly rate-limit automated requests. For reliable, unlimited usage, **self-hosting
+is recommended**.
+
+#### Self-hosting with Docker/Podman (recommended)
+
+A `compose.yml` and `searxng/settings.yml` are included in this repository:
+
+```bash
+# Start (Docker or Podman)
+docker compose up -d
+# or
+podman compose up -d
+```
+
+SearXNG will be available at `http://localhost:8888`. Then set in your `.env`:
+
+```env
+SEARXNG_INSTANCE=http://localhost:8888
+```
+
+The included configuration has:
+
+- `limiter: false` — no rate limiting for local use
+- `format: json` — JSON API enabled
+- Google, Bing, and DuckDuckGo engines active
 
 ### DuckDuckGo (No Key Needed)
 
@@ -319,6 +347,16 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Joop Snijder**
 
 ## Changelog
+
+### 0.1.12 (2026-02-20)
+
+- SearXNG rate-limited instances now persisted to disk (30 min) to avoid retrying blocked instances across sessions
+- Instance list shuffled on startup to spread load evenly across all available instances
+- Added `SEARXNG_INSTANCE` environment variable support
+- 403 responses (JSON format disabled) now treated as rate-limited rather than temporary failures
+- Improved `Retry-After` header handling on 429 responses
+- Improved browser-like request headers (full User-Agent, Accept, Accept-Language)
+- Added Docker/Podman Compose setup for self-hosted SearXNG (`compose.yml` + `searxng/settings.yml`)
 
 ### 0.1.9 (2025-12-12)
 

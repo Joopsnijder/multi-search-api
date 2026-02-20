@@ -46,14 +46,14 @@ class SmartSearchTool:
     Intelligent search tool with automatic fallback and rate limit handling.
 
     Features:
-    - Multi-provider fallback (Serper → SearXNG → Brave → DuckDuckGo → Google Scraper)
+    - Multi-provider fallback (SearXNG → Serper → Brave → DuckDuckGo → Google Scraper)
     - Automatic rate limit detection (HTTP 402/429)
     - Session-based provider skipping when rate limited
     - 1-day result caching for performance
 
     Provider Priority:
-    1. Serper - Best quality with rich snippets (primary choice)
-    2. SearXNG - Free, unlimited, variable quality
+    1. SearXNG - Free, unlimited (preferred when self-hosted via SEARXNG_INSTANCE)
+    2. Serper - Best quality with rich snippets (requires API key)
     3. Brave - Good quality with snippets (requires API key)
     4. DuckDuckGo - Free, no API key, rate limited (~20 req/min)
     5. Google Scraper - Last resort fallback
@@ -100,12 +100,14 @@ class SmartSearchTool:
         # Initialize providers in priority order
         self.providers = []
 
-        # 1. Serper (best quality results with snippets, free up to 2,500/month)
+        # 1. SearXNG (preferred when self-hosted: free, unlimited, no API key)
+        self.providers.append(
+            SearXNGProvider(searxng_instance or os.getenv("SEARXNG_INSTANCE"))
+        )
+
+        # 2. Serper (best quality results with snippets, free up to 2,500/month)
         if serper_api_key or os.getenv("SERPER_API_KEY"):
             self.providers.append(SerperProvider(serper_api_key or os.getenv("SERPER_API_KEY")))
-
-        # 2. SearXNG (fully free, open source, variable quality)
-        self.providers.append(SearXNGProvider(searxng_instance))
 
         # 3. Brave (good quality with snippets, free tier available)
         if brave_api_key or os.getenv("BRAVE_API_KEY"):

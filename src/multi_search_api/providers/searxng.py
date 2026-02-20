@@ -2,6 +2,7 @@
 
 import json
 import logging
+import random
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,7 +21,10 @@ class SearXNGInstanceManager:
 
     INSTANCES_API_URL = "https://searx.space/data/instances.json"
     CACHE_FILE = Path.home() / ".cache" / "multi-search-api" / "searxng_instances.json"
+    BLOCKED_CACHE_FILE = Path.home() / ".cache" / "multi-search-api" / "searxng_blocked.json"
     CACHE_DURATION = timedelta(days=1)
+    # Persist blocked instances for 30 minutes across sessions
+    BLOCKED_PERSIST_DURATION = timedelta(minutes=30)
 
     # Fallback instances if API fails
     FALLBACK_INSTANCES = [
@@ -134,9 +138,34 @@ class SearXNGInstanceManager:
                 self.instances = self.FALLBACK_INSTANCES.copy()
                 logger.info("Using hardcoded fallback instances")
 
+    def load_blocked_instances(self) -> dict[str, float]:
+        """Load persisted blocked instances from disk, filtering out expired ones."""
+        try:
+            if not self.BLOCKED_CACHE_FILE.exists():
+                return {}
+            with open(self.BLOCKED_CACHE_FILE) as f:
+                raw = json.load(f)
+            cutoff = time.time() - self.BLOCKED_PERSIST_DURATION.total_seconds()
+            return {url: ts for url, ts in raw.items() if ts > cutoff}
+        except Exception:
+            return {}
+
+    def save_blocked_instances(self, blocked: dict[str, float]) -> None:
+        """Persist blocked instances to disk."""
+        try:
+            self.BLOCKED_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+            cutoff = time.time() - self.BLOCKED_PERSIST_DURATION.total_seconds()
+            active = {url: ts for url, ts in blocked.items() if ts > cutoff}
+            with open(self.BLOCKED_CACHE_FILE, "w") as f:
+                json.dump(active, f)
+        except Exception as e:
+            logger.debug(f"Could not save blocked instances: {e}")
+
     def get_instances(self) -> list[str]:
-        """Get list of available instances."""
-        return self.instances.copy()
+        """Get list of available instances, shuffled to spread load."""
+        instances = self.instances.copy()
+        random.shuffle(instances)
+        return instances
 
     def refresh_instances(self):
         """Force refresh instances from API."""
@@ -165,7 +194,10 @@ class SearXNGProvider(SearchProvider):
         )
         self.current_instance_idx = 0
         # Track rate-limited instances: {url: timestamp_when_blocked}
-        self.rate_limited_instances: dict[str, float] = {}
+        # Pre-loaded from disk to avoid retrying instances blocked in previous sessions
+        self.rate_limited_instances: dict[str, float] = (
+            self.instance_manager.load_blocked_instances()
+        )
         # Track failed/broken instances: {url: timestamp_when_failed}
         self.failed_instances: dict[str, float] = {}
         # Track warnings that have already been shown (to avoid spam)
@@ -194,8 +226,9 @@ class SearXNGProvider(SearchProvider):
         return True
 
     def _mark_instance_rate_limited(self, instance_url: str):
-        """Mark an instance as rate-limited."""
+        """Mark an instance as rate-limited and persist to disk."""
         self.rate_limited_instances[instance_url] = time.time()
+        self.instance_manager.save_blocked_instances(self.rate_limited_instances)
         self._log_warning_once(
             f"SearXNG instance {instance_url} marked as rate-limited for "
             f"{self.RATE_LIMIT_COOLDOWN}s"
@@ -290,7 +323,15 @@ class SearXNGProvider(SearchProvider):
                     f"{current_instance}/search",
                     params=params,
                     timeout=10,
-                    headers={"User-Agent": "Mozilla/5.0"},
+                    headers={
+                        "User-Agent": (
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/120.0.0.0 Safari/537.36"
+                        ),
+                        "Accept": "application/json",
+                        "Accept-Language": "nl,en;q=0.9",
+                    },
                 )
 
                 if response.status_code == 200:
@@ -310,10 +351,31 @@ class SearXNGProvider(SearchProvider):
                     logger.info(f"SearXNG search successful: {len(results)} results")
                     return results
                 elif response.status_code == 429:
-                    # Rate limited - mark instance and rotate
+                    # Rate limited by server IP - check Retry-After header
+                    retry_after = response.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait_secs = int(retry_after)
+                            logger.info(
+                                f"SearXNG instance {current_instance} requests "
+                                f"Retry-After: {wait_secs}s"
+                            )
+                        except ValueError:
+                            pass
                     self._mark_instance_rate_limited(current_instance)
                     self.rotate_instance()
                     # Check if all instances are now unavailable
+                    if not self._get_available_instances():
+                        raise RateLimitError("All SearXNG instances are unavailable")
+                elif response.status_code == 403:
+                    # 403 may mean JSON format is disabled or bot detection (permanent)
+                    # Treat as a longer-lived failure rather than a short cooldown
+                    logger.debug(
+                        f"SearXNG instance {current_instance} returned 403 "
+                        f"(JSON format may be disabled)"
+                    )
+                    self._mark_instance_rate_limited(current_instance)
+                    self.rotate_instance()
                     if not self._get_available_instances():
                         raise RateLimitError("All SearXNG instances are unavailable")
                 else:

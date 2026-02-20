@@ -1,5 +1,6 @@
 """Tests for search providers."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -118,6 +119,14 @@ class TestBraveProvider:
 
 class TestSearXNGProvider:
     """Tests for SearXNG provider."""
+
+    @pytest.fixture(autouse=True)
+    def clear_blocked_cache(self):
+        """Clear persisted blocked instances before each test for isolation."""
+        blocked_file = Path.home() / ".cache" / "multi-search-api" / "searxng_blocked.json"
+        blocked_file.unlink(missing_ok=True)
+        yield
+        blocked_file.unlink(missing_ok=True)
 
     def test_is_available(self):
         """Test SearXNG is always available."""
