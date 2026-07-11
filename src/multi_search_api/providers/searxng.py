@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import random
 import time
 from datetime import datetime, timedelta
@@ -189,7 +190,12 @@ class SearXNGProvider(SearchProvider):
     def __init__(self, instance_url: str | None = None):
         self.instance_manager = SearXNGInstanceManager()
         self.instances = self.instance_manager.get_instances()
-        self.instance_url = instance_url or (
+        # Prefer a self-hosted instance (SEARXNG_INSTANCE env) over public ones:
+        # public instances give noisy/manipulated results. Keep publics as fallback.
+        env_instance = os.getenv("SEARXNG_INSTANCE")
+        if env_instance and env_instance not in self.instances:
+            self.instances.insert(0, env_instance)
+        self.instance_url = instance_url or env_instance or (
             self.instances[0] if self.instances else "https://searx.be"
         )
         self.current_instance_idx = 0

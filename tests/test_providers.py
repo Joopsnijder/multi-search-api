@@ -138,6 +138,19 @@ class TestSearXNGProvider:
         provider = SearXNGProvider(instance_url="https://custom.searx.com")
         assert provider.instance_url == "https://custom.searx.com"
 
+    def test_prefers_env_instance(self, monkeypatch):
+        """SEARXNG_INSTANCE env is preferred over public instances and kept in the pool."""
+        monkeypatch.setenv("SEARXNG_INSTANCE", "http://localhost:8888")
+        provider = SearXNGProvider()
+        assert provider.instance_url == "http://localhost:8888"
+        assert "http://localhost:8888" in provider.instances
+
+    def test_explicit_instance_overrides_env(self, monkeypatch):
+        """Explicit instance_url wins over SEARXNG_INSTANCE env."""
+        monkeypatch.setenv("SEARXNG_INSTANCE", "http://localhost:8888")
+        provider = SearXNGProvider(instance_url="https://custom.searx.com")
+        assert provider.instance_url == "https://custom.searx.com"
+
     @responses.activate
     def test_successful_search(self, mock_searxng_response):
         """Test successful search with SearXNG."""
