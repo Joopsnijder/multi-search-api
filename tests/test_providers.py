@@ -1,5 +1,6 @@
 """Tests for search providers."""
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -67,6 +68,40 @@ class TestSerperProvider:
 
         with pytest.raises(RateLimitError):
             provider.search("test query")
+
+    @responses.activate
+    def test_exhausted_quota_is_logged_with_its_reason(self, caplog):
+        """An exhausted quota arrives as 400, so the body carries the only clue."""
+        provider = SerperProvider(api_key="test_key")
+
+        responses.add(
+            responses.POST,
+            "https://google.serper.dev/search",
+            json={"message": "Not enough credits", "statusCode": 400},
+            status=400,
+        )
+
+        with caplog.at_level(logging.ERROR):
+            assert provider.search("test query") == []
+
+        assert "Not enough credits" in caplog.text
+
+    @responses.activate
+    def test_non_json_error_body_falls_back_to_raw_text(self, caplog):
+        """A proxy or gateway can answer with HTML instead of Serper's JSON."""
+        provider = SerperProvider(api_key="test_key")
+
+        responses.add(
+            responses.POST,
+            "https://google.serper.dev/search",
+            body="<html>502 Bad Gateway</html>",
+            status=502,
+        )
+
+        with caplog.at_level(logging.ERROR):
+            assert provider.search("test query") == []
+
+        assert "502 Bad Gateway" in caplog.text
 
 
 class TestBraveProvider:

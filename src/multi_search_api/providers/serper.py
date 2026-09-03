@@ -11,6 +11,23 @@ from multi_search_api.providers.base import SearchProvider
 logger = logging.getLogger(__name__)
 
 
+def _error_reason(response: requests.Response) -> str:
+    """Describe why Serper refused a request.
+
+    Serper answers failures with a JSON body carrying the actual cause --
+    an exhausted quota comes back as 400 "Not enough credits", not as the
+    402 you would expect. Logging the status alone turns every one of those
+    into the same opaque line, so read the message out of the body and fall
+    back to the raw text when it is not JSON.
+    """
+    try:
+        message = response.json().get("message")
+    except ValueError:
+        message = None
+
+    return message or response.text[:200].strip() or "no detail in response body"
+
+
 class SerperProvider(SearchProvider):
     """Serper.dev search provider."""
 
@@ -49,10 +66,12 @@ class SerperProvider(SearchProvider):
                 logger.info(f"Serper search successful: {len(results)} results")
                 return results
             elif response.status_code in (402, 429):
-                logger.error(f"Serper API error: {response.status_code}")
-                raise RateLimitError(f"Serper rate limit hit: {response.status_code}")
+                reason = _error_reason(response)
+                logger.error(f"Serper API error {response.status_code}: {reason}")
+                raise RateLimitError(f"Serper rate limit hit: {response.status_code}: {reason}")
             else:
-                logger.error(f"Serper API error: {response.status_code}")
+                reason = _error_reason(response)
+                logger.error(f"Serper API error {response.status_code}: {reason}")
                 return []
 
         except RateLimitError:
