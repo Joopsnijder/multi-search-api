@@ -6,6 +6,7 @@ server:
   image_proxy: false
   port: 8080
   bind_address: "0.0.0.0"
+  base_url: "http://localhost:8888/"
 
 ui:
   static_use_hash: true
@@ -23,9 +24,17 @@ engines:
     engine: google
     shortcut: g
 
+  # bing negeert de zoekterm en geeft vaste ruis terug (Leenman -> FIFA-forum,
+  # Thijs Leenman -> Thijs Logistiek); uit tot dat is opgelost (#968)
   - name: bing
     engine: bing
     shortcut: b
+    disabled: true
+
+  - name: yandex
+    engine: yandex
+    shortcut: yd
+    disabled: false
 
   - name: duckduckgo
     engine: duckduckgo

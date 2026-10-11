@@ -322,7 +322,9 @@ class SearXNGProvider(SearchProvider):
                     "q": query,
                     "format": "json",
                     "language": "nl",
-                    "engines": "google,bing,duckduckgo",
+                    # geen "engines": de instance weet welke van zijn engines
+                    # werken. Geforceerd google,bing,duckduckgo liet alleen een
+                    # kapotte bing over zodra google en ddg geblokkeerd waren.
                 }
 
                 response = requests.get(

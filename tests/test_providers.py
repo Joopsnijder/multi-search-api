@@ -204,6 +204,22 @@ class TestSearXNGProvider:
         assert results[0]["title"] == "SearXNG Result 1"
         assert results[0]["source"] == "searxng"
 
+    @responses.activate
+    def test_search_leaves_engine_choice_to_the_instance(self, mock_searxng_response):
+        """The request must not force engines: a self-hosted instance knows which of
+        its engines work. Forcing google,bing,duckduckgo left only a broken bing."""
+        provider = SearXNGProvider(instance_url="https://searx.be")
+        responses.add(
+            responses.GET,
+            "https://searx.be/search",
+            json=mock_searxng_response,
+            status=200,
+        )
+
+        provider.search("test query")
+
+        assert "engines" not in responses.calls[0].request.params
+
     def test_instance_rotation(self):
         """Test instance rotation on failure."""
         provider = SearXNGProvider()
